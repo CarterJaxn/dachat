@@ -9,6 +9,8 @@ import { registerVisitorWs } from "./ws/visitorSession.js";
 
 const app = Fastify({ logger: true });
 
+app.get("/health", async () => ({ status: "ok", timestamp: new Date().toISOString() }));
+
 await app.register(cors, { origin: "*" });
 await app.register(jwt, { secret: process.env.JWT_SECRET! });
 await app.register(websocket);
