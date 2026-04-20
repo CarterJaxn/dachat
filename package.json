@@ -12,11 +12,13 @@
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx scripts/seed.ts"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "drizzle-kit": "^0.30.0",
+    "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   }
 }
