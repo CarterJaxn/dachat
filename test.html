@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DaChat Widget Test Page</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f9fafb;
+      color: #111;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: #6366f1;
+      color: #fff;
+      padding: 20px 32px;
+    }
+    header h1 { font-size: 22px; font-weight: 700; }
+    header p  { font-size: 14px; opacity: 0.85; margin-top: 4px; }
+    main {
+      flex: 1;
+      padding: 40px 32px;
+      max-width: 720px;
+    }
+    section { margin-bottom: 32px; }
+    h2 { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #374151; }
+    pre {
+      background: #1e1e2e;
+      color: #cdd6f4;
+      border-radius: 8px;
+      padding: 16px;
+      font-size: 13px;
+      overflow-x: auto;
+      line-height: 1.6;
+    }
+    .badge {
+      display: inline-block;
+      background: #dcfce7;
+      color: #166534;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge.warn {
+      background: #fef9c3;
+      color: #854d0e;
+    }
+    #config-display {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+      font-size: 14px;
+      line-height: 1.8;
+    }
+    #config-display span { font-weight: 600; color: #4f46e5; }
+    .steps ol { padding-left: 20px; font-size: 14px; line-height: 2; color: #374151; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>DaChat Widget — Test Page</h1>
+    <p>Use this page to verify the widget loads, connects, and can send messages.</p>
+  </header>
+
+  <main>
+    <section>
+      <h2>Current Configuration <span id="status-badge" class="badge warn">checking…</span></h2>
+      <div id="config-display">Loading…</div>
+    </section>
+
+    <section class="steps">
+      <h2>Verification Checklist</h2>
+      <ol>
+        <li>The chat bubble appears in the bottom-right corner</li>
+        <li>Clicking it opens the chat panel (status: "Connecting…" then "Type a message…")</li>
+        <li>Send a test message — it should appear as a visitor bubble</li>
+        <li>Check the API <code>GET /conversations</code> to confirm the conversation was created</li>
+        <li>Reply from the dashboard and verify the reply appears in the widget</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Quick URL Params</h2>
+      <p style="font-size:14px;color:#6b7280;margin-bottom:12px;">
+        Override config via query string for ad-hoc testing:
+      </p>
+      <pre>?apiUrl=https://api.dachat.io&amp;apiKey=wk_xxxx&amp;accentColor=%236366f1</pre>
+    </section>
+
+    <section>
+      <h2>Embed Snippet (CDN)</h2>
+      <pre id="snippet-display">Loading…</pre>
+    </section>
+  </main>
+
+  <script>
+    // ---------------------------------------------------------------------------
+    // Config resolution order:
+    //   1. URL query params  (?apiUrl=… &apiKey=… &accentColor=…)
+    //   2. Hard-coded defaults below (edit for your environment)
+    // ---------------------------------------------------------------------------
+    const DEFAULT_API_URL     = "http://localhost:3000";
+    const DEFAULT_API_KEY     = "wk_test_placeholder";
+    const DEFAULT_ACCENT      = "#6366f1";
+    const CDN_URL             = "https://cdn.dachat.io/dachat-widget.iife.js";
+    // For local testing against the dist output, swap CDN_URL with:
+    // const CDN_URL = "./packages/widget/dist/dachat-widget.iife.js";
+
+    const params      = new URLSearchParams(location.search);
+    const apiUrl      = params.get("apiUrl")      || DEFAULT_API_URL;
+    const apiKey      = params.get("apiKey")      || DEFAULT_API_KEY;
+    const accentColor = params.get("accentColor") || DEFAULT_ACCENT;
+
+    // Show config
+    document.getElementById("config-display").innerHTML =
+      `<span>API URL:</span>      ${apiUrl}<br>` +
+      `<span>API Key:</span>      ${apiKey}<br>` +
+      `<span>Accent:</span>       ${accentColor}<br>` +
+      `<span>Widget src:</span>   ${CDN_URL}`;
+
+    // Show snippet
+    document.getElementById("snippet-display").textContent =
+`<script
+  src="${CDN_URL}"
+  data-api-url="${apiUrl}"
+  data-api-key="${apiKey}"
+  data-accent-color="${accentColor}">
+<\/script>`;
+
+    // Inject the widget script dynamically so we can set data-* attributes
+    const script = document.createElement("script");
+    script.src = CDN_URL;
+    script.dataset.apiUrl      = apiUrl;
+    script.dataset.apiKey      = apiKey;
+    script.dataset.accentColor = accentColor;
+
+    script.onload = () => {
+      const badge = document.getElementById("status-badge");
+      badge.textContent = "widget loaded";
+      badge.className   = "badge";
+    };
+    script.onerror = () => {
+      const badge = document.getElementById("status-badge");
+      badge.textContent = "load error — check CDN URL or CORS";
+      badge.className   = "badge warn";
+    };
+
+    document.body.appendChild(script);
+  </script>
+</body>
+</html>
