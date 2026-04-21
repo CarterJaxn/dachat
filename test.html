@@ -108,9 +108,9 @@
     const DEFAULT_API_URL     = "http://localhost:3000";
     const DEFAULT_API_KEY     = "wk_test_placeholder";
     const DEFAULT_ACCENT      = "#6366f1";
-    const CDN_URL             = "https://cdn.dachat.io/dachat-widget.iife.js";
-    // For local testing against the dist output, swap CDN_URL with:
-    // const CDN_URL = "./packages/widget/dist/dachat-widget.iife.js";
+    const CDN_URL             = "./packages/widget/dist/dachat-widget.iife.js";
+    // To test against the live CDN, swap CDN_URL with:
+    // const CDN_URL = "https://cdn.dachat.io/dachat-widget.iife.js";
 
     const params      = new URLSearchParams(location.search);
     const apiUrl      = params.get("apiUrl")      || DEFAULT_API_URL;
