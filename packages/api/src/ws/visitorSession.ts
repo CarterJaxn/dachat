@@ -3,9 +3,7 @@ import { WebSocket } from "ws";
 import { db, workspaces, contacts, conversations, messages } from "../db/index.js";
 import { eq, and } from "drizzle-orm";
 import type { WsClientMsg, WsServerMsg } from "@dachat/shared";
-
-// Map conversationId → Set<WebSocket> for operator fanout
-export const conversationSockets = new Map<string, Set<WebSocket>>();
+import { conversationSockets, operatorSockets } from "./sockets.js";
 
 function send(ws: WebSocket, msg: WsServerMsg) {
   if (ws.readyState === WebSocket.OPEN) {
@@ -55,7 +53,6 @@ export async function registerVisitorWs(app: FastifyInstance) {
         }
 
         if (msg.type === "visitor.identify") {
-          // Upsert contact
           let contact = msg.externalId
             ? (
                 await db
@@ -86,7 +83,6 @@ export async function registerVisitorWs(app: FastifyInstance) {
 
           contactId = contact.id;
 
-          // Open a new conversation
           const [conv] = await db
             .insert(conversations)
             .values({ workspaceId: workspace.id, contactId: contact.id })
@@ -94,6 +90,22 @@ export async function registerVisitorWs(app: FastifyInstance) {
 
           conversationId = conv.id;
           conversationSockets.set(conversationId, new Set([socket]));
+
+          // Notify all connected operators about the new conversation
+          const opMsg = JSON.stringify({
+            type: "conversation.new",
+            conversation: {
+              id: conv.id,
+              workspaceId: conv.workspaceId,
+              contactId: conv.contactId,
+              status: conv.status,
+              createdAt: conv.createdAt.toISOString(),
+              updatedAt: conv.updatedAt.toISOString(),
+            },
+          });
+          for (const ws of operatorSockets.get(workspace.id) ?? new Set()) {
+            if (ws.readyState === WebSocket.OPEN) ws.send(opMsg);
+          }
 
           send(socket, { type: "session.ready", conversationId: conv.id, contactId: contact.id });
           return;
@@ -121,10 +133,15 @@ export async function registerVisitorWs(app: FastifyInstance) {
             },
           };
 
-          // Fan out to all sockets on this conversation (includes operator sockets)
-          const sockets = conversationSockets.get(conversationId) ?? new Set();
-          for (const ws of sockets) {
+          // Fan out to all sockets on this conversation (includes operator sockets subscribed per-conversation)
+          for (const ws of conversationSockets.get(conversationId) ?? new Set()) {
             send(ws, outMsg);
+          }
+
+          // Also notify workspace-level operator sockets
+          const opMsg = JSON.stringify(outMsg);
+          for (const ws of operatorSockets.get(workspace.id) ?? new Set()) {
+            if (ws.readyState === WebSocket.OPEN) ws.send(opMsg);
           }
         }
       });
@@ -133,9 +150,7 @@ export async function registerVisitorWs(app: FastifyInstance) {
         if (conversationId) {
           const sockets = conversationSockets.get(conversationId);
           sockets?.delete(socket);
-          if (sockets?.size === 0) {
-            conversationSockets.delete(conversationId);
-          }
+          if (sockets?.size === 0) conversationSockets.delete(conversationId);
         }
       });
     }

@@ -1,9 +1,10 @@
 import { FastifyInstance } from "fastify";
 import { db, conversations, messages } from "../db/index.js";
 import { eq, asc } from "drizzle-orm";
+import { WebSocket } from "ws";
+import { conversationSockets, operatorSockets } from "../ws/sockets.js";
 
 export async function conversationRoutes(app: FastifyInstance) {
-  // GET /conversations — list all conversations for authenticated workspace
   app.get("/conversations", { preHandler: [app.authenticate] }, async (req) => {
     const { workspaceId } = req.user as { workspaceId: string };
     return db
@@ -13,7 +14,6 @@ export async function conversationRoutes(app: FastifyInstance) {
       .orderBy(conversations.updatedAt);
   });
 
-  // GET /conversations/:id
   app.get<{ Params: { id: string } }>(
     "/conversations/:id",
     { preHandler: [app.authenticate] },
@@ -28,7 +28,6 @@ export async function conversationRoutes(app: FastifyInstance) {
     }
   );
 
-  // PATCH /conversations/:id — update status (open/closed)
   app.patch<{ Params: { id: string }; Body: { status: "open" | "closed" } }>(
     "/conversations/:id",
     { preHandler: [app.authenticate] },
@@ -43,7 +42,6 @@ export async function conversationRoutes(app: FastifyInstance) {
     }
   );
 
-  // GET /conversations/:id/messages
   app.get<{ Params: { id: string } }>(
     "/conversations/:id/messages",
     { preHandler: [app.authenticate] },
@@ -56,19 +54,18 @@ export async function conversationRoutes(app: FastifyInstance) {
     }
   );
 
-  // POST /conversations/:id/messages — operator reply
+  // POST /conversations/:id/messages — operator reply via REST
   app.post<{ Params: { id: string }; Body: { body: string } }>(
     "/conversations/:id/messages",
     { preHandler: [app.authenticate] },
     async (req, reply) => {
+      const { workspaceId } = req.user as { workspaceId: string };
+
       const [msg] = await db
         .insert(messages)
         .values({ conversationId: req.params.id, role: "operator", body: req.body.body })
         .returning();
 
-      // Fan out to any live WebSocket session on this conversation
-      const { conversationSockets } = await import("../ws/visitorSession.js");
-      const sockets = conversationSockets.get(req.params.id) ?? new Set();
       const outMsg = JSON.stringify({
         type: "message.new",
         message: {
@@ -79,8 +76,15 @@ export async function conversationRoutes(app: FastifyInstance) {
           createdAt: msg.createdAt.toISOString(),
         },
       });
-      for (const ws of sockets) {
-        if (ws.readyState === 1 /* OPEN */) ws.send(outMsg);
+
+      // Fan out to visitor WebSocket
+      for (const ws of conversationSockets.get(req.params.id) ?? new Set()) {
+        if (ws.readyState === WebSocket.OPEN) ws.send(outMsg);
+      }
+
+      // Fan out to all operator sockets on this workspace
+      for (const ws of operatorSockets.get(workspaceId) ?? new Set()) {
+        if (ws.readyState === WebSocket.OPEN) ws.send(outMsg);
       }
 
       return reply.status(201).send(msg);

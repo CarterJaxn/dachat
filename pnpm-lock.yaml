@@ -14,6 +14,9 @@ importers:
       drizzle-kit:
         specifier: ^0.30.0
         version: 0.30.6
+      tsx:
+        specifier: ^4.19.0
+        version: 4.21.0
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -32,6 +35,9 @@ importers:
       '@fastify/websocket':
         specifier: ^11.0.0
         version: 11.2.0
+      bcryptjs:
+        specifier: ^2.4.3
+        version: 2.4.3
       drizzle-orm:
         specifier: ^0.40.0
         version: 0.40.1(@types/pg@8.20.0)(gel@2.2.0)(pg@8.20.0)
@@ -48,6 +54,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@types/bcryptjs':
+        specifier: ^2.4.6
+        version: 2.4.6
       '@types/pg':
         specifier: ^8.11.0
         version: 8.20.0
@@ -63,6 +72,34 @@ importers:
       vitest:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@20.19.39)
+
+  packages/dashboard:
+    dependencies:
+      '@dachat/shared':
+        specifier: workspace:*
+        version: link:../shared
+      react:
+        specifier: ^18.3.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.0
+        version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@types/react':
+        specifier: ^18.3.0
+        version: 18.3.28
+      '@types/react-dom':
+        specifier: ^18.3.0
+        version: 18.3.7(@types/react@18.3.28)
+      '@vitejs/plugin-react':
+        specifier: ^4.3.0
+        version: 4.7.0(vite@6.4.2(@types/node@20.19.39)(tsx@4.21.0))
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.2(@types/node@20.19.39)(tsx@4.21.0)
 
   packages/shared:
     devDependencies:
@@ -1120,6 +1157,9 @@ packages:
   '@types/babel__traverse@7.28.0':
     resolution: {integrity: sha512-8PvcXf70gTDZBgt9ptxJ8elBeBjcLOAcOtoO/mPJjtji1+CdGbHgm77om1GrsPxsiE+uXIpNSK64UYaIwQXd4Q==}
 
+  '@types/bcryptjs@2.4.6':
+    resolution: {integrity: sha512-9xlo6R2qDs5uixm0bcIqCeMCE6HiQsIyel9KQySStiyqNl2tnj2mP3DX1Nf56MD6KMenNNlBBsy3LJ7gUEQPXQ==}
+
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
 
@@ -1210,6 +1250,9 @@ packages:
     resolution: {integrity: sha512-1AaXxEPfXT+GvTBJFuy4yXVHWJBXa4OdbIebGN/wX5DlsIkU0+wzGnd2lOzokSk51d5LUmqjgBLRLlypLUqInQ==}
     engines: {node: '>=6.0.0'}
     hasBin: true
+
+  bcryptjs@2.4.3:
+    resolution: {integrity: sha512-V/Hy/X9Vt7f3BbPJEi8BdVFMByHi+jNXrYkW3huaybV/kQ0KJg0Y6PkEMbn+zeT+i+SiKZ/HMqJGIIt4LZDqNQ==}
 
   bn.js@4.12.3:
     resolution: {integrity: sha512-fGTi3gxV/23FTYdAoUtLYp6qySe2KE3teyZitipKNRuVYcBkoP/bB3guXN/XVKUe9mxCHXnc9C4ocyz8OmgN0g==}
@@ -2606,6 +2649,8 @@ snapshots:
     dependencies:
       '@babel/types': 7.29.0
 
+  '@types/bcryptjs@2.4.6': {}
+
   '@types/estree@1.0.8': {}
 
   '@types/node@20.19.39':
@@ -2715,6 +2760,8 @@ snapshots:
       fastq: 1.20.1
 
   baseline-browser-mapping@2.10.20: {}
+
+  bcryptjs@2.4.3: {}
 
   bn.js@4.12.3: {}
 

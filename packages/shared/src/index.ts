@@ -49,3 +49,15 @@ export type WsServerMsg =
   | { type: "message.new"; message: Message }
   | { type: "pong" }
   | { type: "error"; code: string; message: string };
+
+// WebSocket message types (operator dashboard ↔ API)
+export type WsOperatorClientMsg =
+  | { type: "operator.message"; conversationId: ConversationId; body: string }
+  | { type: "ping" };
+
+export type WsOperatorServerMsg =
+  | { type: "connected"; workspaceId: WorkspaceId }
+  | { type: "message.new"; message: Message }
+  | { type: "conversation.new"; conversation: Conversation }
+  | { type: "pong" }
+  | { type: "error"; code: string; message: string };
