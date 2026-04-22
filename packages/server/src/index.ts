@@ -2,7 +2,6 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import websocket from '@fastify/websocket'
 import jwt from '@fastify/jwt'
-import { billingRoutes, billingWebhookRoute } from './routes/billing.js'
 import { authRoutes } from './routes/auth.js'
 import { conversationRoutes } from './routes/conversations.js'
 import { widgetRoutes } from './routes/widget.js'
@@ -19,7 +18,7 @@ await server.register(jwt, { secret: jwtSecret })
 
 // Global auth guard — all routes except /auth/* and a small public allowlist require a valid JWT
 // /ws is excluded because WebSocket connections carry the JWT as a ?token= query param
-const PUBLIC_EXACT = new Set(['/health', '/billing/plans', '/billing/webhooks/stripe', '/ws'])
+const PUBLIC_EXACT = new Set(['/health', '/ws'])
 server.addHook('onRequest', async (request, reply) => {
   const path = request.url.split('?')[0]
   if (path.startsWith('/auth/') || path.startsWith('/widget/') || PUBLIC_EXACT.has(path)) return
@@ -34,10 +33,6 @@ server.get('/health', async () => ({ status: 'ok', ts: Date.now() }))
 
 await server.register(wsPlugin)
 
-// Billing webhook must be registered before billingRoutes because it scopes
-// its own content-type parser to capture the raw body for Stripe sig verification
-await server.register(billingWebhookRoute)
-await server.register(billingRoutes)
 await server.register(authRoutes)
 await server.register(conversationRoutes)
 await server.register(widgetRoutes)
