@@ -4,6 +4,7 @@ import websocket from '@fastify/websocket'
 import jwt from '@fastify/jwt'
 import { billingRoutes, billingWebhookRoute } from './routes/billing.js'
 import { authRoutes } from './routes/auth.js'
+import { conversationRoutes } from './routes/conversations.js'
 
 const server = Fastify({ logger: true })
 
@@ -41,6 +42,7 @@ server.register(async function wsRoutes(fastify) {
 await server.register(billingWebhookRoute)
 await server.register(billingRoutes)
 await server.register(authRoutes)
+await server.register(conversationRoutes)
 
 const port = Number(process.env.PORT ?? 3001)
 await server.listen({ port, host: '0.0.0.0' })
