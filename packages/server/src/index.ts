@@ -5,6 +5,7 @@ import jwt from '@fastify/jwt'
 import { billingRoutes, billingWebhookRoute } from './routes/billing.js'
 import { authRoutes } from './routes/auth.js'
 import { conversationRoutes } from './routes/conversations.js'
+import { wsPlugin } from './ws/roomManager.js'
 
 const server = Fastify({ logger: true })
 
@@ -16,7 +17,8 @@ if (!jwtSecret) throw new Error('JWT_SECRET is required')
 await server.register(jwt, { secret: jwtSecret })
 
 // Global auth guard — all routes except /auth/* and a small public allowlist require a valid JWT
-const PUBLIC_EXACT = new Set(['/health', '/billing/plans', '/billing/webhooks/stripe'])
+// /ws is excluded because WebSocket connections carry the JWT as a ?token= query param
+const PUBLIC_EXACT = new Set(['/health', '/billing/plans', '/billing/webhooks/stripe', '/ws'])
 server.addHook('onRequest', async (request, reply) => {
   const path = request.url.split('?')[0]
   if (path.startsWith('/auth/') || PUBLIC_EXACT.has(path)) return
@@ -29,13 +31,7 @@ server.addHook('onRequest', async (request, reply) => {
 
 server.get('/health', async () => ({ status: 'ok', ts: Date.now() }))
 
-server.register(async function wsRoutes(fastify) {
-  fastify.get('/ws', { websocket: true }, (connection) => {
-    connection.socket.on('message', (msg: Buffer) => {
-      connection.socket.send(JSON.stringify({ echo: msg.toString() }))
-    })
-  })
-})
+await server.register(wsPlugin)
 
 // Billing webhook must be registered before billingRoutes because it scopes
 // its own content-type parser to capture the raw body for Stripe sig verification

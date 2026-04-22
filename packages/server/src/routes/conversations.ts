@@ -3,6 +3,7 @@ import { eq, desc, and, asc } from 'drizzle-orm'
 import { z, ZodError } from 'zod'
 import { db, conversations, messages, contacts } from '../db/index.js'
 import { authPreHandler } from '../middleware/auth.js'
+import { publishToRoom } from '../ws/pubsub.js'
 
 const ListConversationsQuery = z.object({
   status: z.enum(['open', 'pending', 'resolved']).optional(),
@@ -173,6 +174,15 @@ export const conversationRoutes: FastifyPluginAsync = async (fastify) => {
       .where(eq(conversations.id, id))
       .returning()
 
+    publishToRoom(id, {
+      type: 'conversation:updated',
+      conversationId: id,
+      ...(body.status !== undefined && { status: body.status }),
+      ...(body.assignedOperatorId !== undefined && {
+        assignedOperatorId: body.assignedOperatorId,
+      }),
+    })
+
     return { conversation: updated }
   })
 
@@ -233,6 +243,19 @@ export const conversationRoutes: FastifyPluginAsync = async (fastify) => {
         .set({ updatedAt: new Date() })
         .where(eq(conversations.id, id))
         .returning()
+
+      publishToRoom(id, {
+        type: 'message:new',
+        conversationId: id,
+        message: {
+          id: msg.id,
+          conversationId: msg.conversationId,
+          senderType: msg.senderType as 'operator' | 'contact',
+          senderId: msg.senderId,
+          content: msg.content,
+          createdAt: msg.createdAt.toISOString(),
+        },
+      })
 
       reply.code(201)
       return { message: msg }
