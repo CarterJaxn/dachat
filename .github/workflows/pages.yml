@@ -1,0 +1,45 @@
+name: Deploy widget test page to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "test.html"
+      - "packages/widget/dist/**"
+      - "packages/widget/src/**"
+      - "packages/widget/vite.config.ts"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare Pages artifact
+        run: |
+          mkdir -p _site/packages/widget/dist
+          cp test.html _site/
+          cp packages/widget/dist/dachat-widget.iife.js _site/packages/widget/dist/
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - uses: actions/deploy-pages@v4
+        id: deployment
