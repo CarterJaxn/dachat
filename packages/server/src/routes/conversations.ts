@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { eq, desc, and, asc } from 'drizzle-orm'
 import { z, ZodError } from 'zod'
-import { db, conversations, messages, contacts } from '../db/index.js'
+import { db, conversations, messages, contacts, attachments, readReceipts } from '../db/index.js'
 import { authPreHandler } from '../middleware/auth.js'
 import { publishToRoom } from '../ws/pubsub.js'
 
@@ -46,6 +46,15 @@ const ListMessagesQuery = z.object({
 const CreateMessageBody = z.object({
   content: z.string().min(1),
   senderType: z.enum(['operator', 'contact']).default('operator'),
+  senderId: z.string().uuid().optional(),
+})
+
+const UploadAttachmentBody = z.object({
+  filename: z.string().min(1),
+  mimeType: z.string().min(1),
+  size: z.number().int().positive().max(10 * 1024 * 1024), // 10 MB limit
+  data: z.string().min(1), // base64-encoded file contents
+  senderType: z.enum(['operator', 'contact']).default('contact'),
   senderId: z.string().uuid().optional(),
 })
 
@@ -201,6 +210,7 @@ export const conversationRoutes: FastifyPluginAsync = async (fastify) => {
 
       const rows = await db.query.messages.findMany({
         where: eq(messages.conversationId, id),
+        with: { attachments: true },
         orderBy: [asc(messages.createdAt)],
         limit,
         offset,
@@ -259,6 +269,106 @@ export const conversationRoutes: FastifyPluginAsync = async (fastify) => {
 
       reply.code(201)
       return { message: msg }
+    },
+  )
+
+  // POST /conversations/:id/attachments — upload a file as a new message
+  fastify.post(
+    '/conversations/:id/attachments',
+    { preHandler: authPreHandler },
+    async (request, reply) => {
+      const { id } = request.params as { id: string }
+      const body = UploadAttachmentBody.parse(request.body)
+
+      const conv = await db.query.conversations.findFirst({
+        where: eq(conversations.id, id),
+      })
+      if (!conv) return reply.code(404).send({ error: 'Conversation not found' })
+
+      const senderId =
+        body.senderId ??
+        (body.senderType === 'operator' ? request.user.sub : conv.contactId)
+
+      // Create a message that carries the attachment
+      const [msg] = await db
+        .insert(messages)
+        .values({
+          conversationId: id,
+          content: body.filename,
+          senderType: body.senderType,
+          senderId,
+        })
+        .returning()
+
+      const dataUrl = `data:${body.mimeType};base64,${body.data}`
+      const [attachment] = await db
+        .insert(attachments)
+        .values({
+          messageId: msg.id,
+          url: dataUrl,
+          filename: body.filename,
+          size: body.size,
+          mimeType: body.mimeType,
+        })
+        .returning()
+
+      await db
+        .update(conversations)
+        .set({ updatedAt: new Date() })
+        .where(eq(conversations.id, id))
+
+      publishToRoom(id, {
+        type: 'message:new',
+        conversationId: id,
+        message: {
+          id: msg.id,
+          conversationId: msg.conversationId,
+          senderType: msg.senderType as 'operator' | 'contact',
+          senderId: msg.senderId,
+          content: msg.content,
+          createdAt: msg.createdAt.toISOString(),
+          attachments: [
+            {
+              id: attachment.id,
+              url: attachment.url,
+              filename: attachment.filename,
+              size: attachment.size,
+              mimeType: attachment.mimeType,
+            },
+          ],
+        },
+      })
+
+      reply.code(201)
+      return { message: msg, attachment }
+    },
+  )
+
+  // POST /messages/:id/read — record operator read receipt and broadcast over WS
+  fastify.post(
+    '/messages/:id/read',
+    { preHandler: authPreHandler },
+    async (request, reply) => {
+      const { id: messageId } = request.params as { id: string }
+
+      const msg = await db.query.messages.findFirst({
+        where: eq(messages.id, messageId),
+      })
+      if (!msg) return reply.code(404).send({ error: 'Message not found' })
+
+      await db
+        .insert(readReceipts)
+        .values({ messageId, operatorId: request.user.sub })
+        .onConflictDoNothing()
+
+      publishToRoom(msg.conversationId, {
+        type: 'receipt:read',
+        conversationId: msg.conversationId,
+        messageId,
+        readBy: request.user.sub,
+      })
+
+      reply.code(204)
     },
   )
 }

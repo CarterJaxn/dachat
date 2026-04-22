@@ -36,6 +36,17 @@ export const ServerMessageNew = z.object({
     senderId: z.string().uuid(),
     content: z.string(),
     createdAt: z.string(),
+    attachments: z
+      .array(
+        z.object({
+          id: z.string().uuid(),
+          url: z.string(),
+          filename: z.string(),
+          size: z.number(),
+          mimeType: z.string(),
+        }),
+      )
+      .optional(),
   }),
 })
 

@@ -5,6 +5,7 @@ import jwt from '@fastify/jwt'
 import { billingRoutes, billingWebhookRoute } from './routes/billing.js'
 import { authRoutes } from './routes/auth.js'
 import { conversationRoutes } from './routes/conversations.js'
+import { widgetRoutes } from './routes/widget.js'
 import { wsPlugin } from './ws/roomManager.js'
 
 const server = Fastify({ logger: true })
@@ -21,7 +22,7 @@ await server.register(jwt, { secret: jwtSecret })
 const PUBLIC_EXACT = new Set(['/health', '/billing/plans', '/billing/webhooks/stripe', '/ws'])
 server.addHook('onRequest', async (request, reply) => {
   const path = request.url.split('?')[0]
-  if (path.startsWith('/auth/') || PUBLIC_EXACT.has(path)) return
+  if (path.startsWith('/auth/') || path.startsWith('/widget/') || PUBLIC_EXACT.has(path)) return
   try {
     await request.jwtVerify()
   } catch {
@@ -39,6 +40,7 @@ await server.register(billingWebhookRoute)
 await server.register(billingRoutes)
 await server.register(authRoutes)
 await server.register(conversationRoutes)
+await server.register(widgetRoutes)
 
 const port = Number(process.env.PORT ?? 3001)
 await server.listen({ port, host: '0.0.0.0' })
